@@ -1,14 +1,37 @@
-class Intro extends Phaser.Scene{
+class Menu extends Phaser.Scene{
     constructor(){
-        super('intro');
+        super('menu');
     }
 
     preload(){
-
+        this.load.image('background', 'assets/background.png');
     }
 
     create(){
+        this.add.image(960, 540, 'background')
+            .setScale(3.4);
+        this.add.text(710, 200, 'Sky Skate', {
+            fontSize: '72px',
+            fill: '#0a90e9',
+            fontStyle: 'bold'
+        });
 
+        this.startText = this.add.text(650, 560, 'Click to Start', {
+            fontSize: '60px',
+            fill: '#f7f6f4',
+            fontStyle: 'bold'
+        });
+        this.tweens.add({
+            targets: this.startText,
+            alpha: 0.5,
+            duration: 800,
+            repeat: -1,
+            ease: 'Sine.easeInout'
+        });
+
+        this.input.on('pointerdown', () => {
+            this.scene.start('park');
+        });
     }
 }
 
@@ -52,7 +75,8 @@ class Park extends Phaser.Scene{
     }
 
     preload(){
-        this.load.image('background', 'assets/Background.png');
+        this.load.image('background1', 'assets/background1.png');
+        this.load.image('backgroundTrees', 'assets/5.png');
         this.load.image('grass2', 'assets/Tile_02.png');
         this.load.image('smallTree', 'assets/Tree2.png');
         this.load.image('bigTree', 'assets/Tree4.png');
@@ -65,12 +89,15 @@ class Park extends Phaser.Scene{
     }
 
     create(){
+        //this.scene.start('summarylevel1');
         //create invisible boundaries around the edges of the game world 
         //to prevent objects from falling off the screen
         //this.matter.world.setBounds(x, y, width, height)
         this.matter.world.setBounds(10, 10, game.config.width - 20, game.config.height - 20);
 
-        this.add.image(960, 540, 'background')
+        this.add.image(960, 540, 'background1')
+            .setScale(3.4);
+        this.add.image(960, 490, 'backgroundTrees')
             .setScale(3.4);
         this.add.image(300, 900, 'smallTree')
             .setScale(3)
@@ -140,7 +167,7 @@ class Park extends Phaser.Scene{
         this.matter.world.on('collisionstart', (event, body1, body2) => {
             if (body1 === this.player && body2.label === 'goal' ||
                 body2 === this.player && body1.label === 'goal'){
-                    this.scene.start('intro');
+                    this.scene.start('summarylevel1', {seconds: this.seconds, level: 'Park'});
                 }
         });
 
@@ -230,6 +257,67 @@ class Park extends Phaser.Scene{
     }
 }
 
+class Rooftops extends Phaser.Scene{
+    constructor(){
+        super('rooftops');
+    }
+}
+
+class Sky extends Phaser.Scene{
+    constructor(){
+        super('sky');
+    }
+}
+
+class Summary extends Phaser.Scene{
+    constructor(){
+        super('summary');
+    }
+    
+    preload(){
+        this.load.image('backgroundlevel', 'assets/background.png');
+    }
+    create(data){
+        let minutes = Math.floor(data.seconds / 60);
+        let partInSeconds = data.seconds % 60;
+        let formattedSeconds = partInSeconds.toString().padStart(2, '0');
+        this.add.image(960, 540, 'backgroundlevel')
+        .setScale(3.4);
+        
+        //holds the next level and time to beat for each level
+        const levelData = {
+            'Park': {next: 'Rooftops', label: 'Level 1 Complete!' , timeToBeat: '1:00'},
+            'Rooftops': {next: 'Sky', label: 'Level 2 Complete!', timeToBeat: '0:45'},
+            'Sky':{next: 'Menu', label: 'Game Complete!'}        
+        };
+
+        const current = this.levelData[data.level]
+
+        this.add.rectangle(960, 540, 900, 900, 0x000000, 0.7);
+
+        this.add.text(650, 200, current.label, {
+            fontSize: '60px',
+            fill: '#4ef75c',
+        });
+
+        this.add.text(650, 380, `Final Time: ${minutes}:${formattedSeconds}`, {
+            fontSize: '50px',
+            fill: '#ffffff'
+        });
+
+        this.add.text(650, 500, `Time to beat: ${current.timeToBeat}`, {
+            fontSize: '50px',
+            fill: '#ffffff'
+        });
+
+        this.add.text(770, 620, `Next Level: ${current.next}`, {
+            fontSize: '50px',
+            fill: '#ffffff'
+        });
+    }
+
+}
+
 
 const config = {
     type: Phaser.AUTO, //explicity set the rendering mode to AUTO, which will choose between WebGL and Canvas based on the browser's capabilities
@@ -246,12 +334,12 @@ const config = {
         default: 'matter', 
         matter: {
             gravity: {y: 1}, //set the gravity in the y direction to 1, which will cause objects to fall downwards}
-            debug: true, //enable the physics debug mode, which will render outlines and other visual aids to help with debugging physics interactions
+            debug: false, //enable the physics debug mode, which will render outlines and other visual aids to help with debugging physics interactions
         }
     },
 
     //scene management
-    scene: [Park, Intro],
+    scene: [Menu, Park, Rooftops, Sky, Summary],
 };
 
 const game = new Phaser.Game(config);
