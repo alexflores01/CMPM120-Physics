@@ -8,6 +8,7 @@ class Menu extends Phaser.Scene{
     }
 
     create(){
+        this.scene.start('rooftops');
         this.add.image(960, 540, 'background')
             .setScale(3.4);
         this.add.text(710, 200, 'Sky Skate', {
@@ -167,7 +168,7 @@ class Park extends Phaser.Scene{
         this.matter.world.on('collisionstart', (event, body1, body2) => {
             if (body1 === this.player && body2.label === 'goal' ||
                 body2 === this.player && body1.label === 'goal'){
-                    this.scene.start('summarylevel1', {seconds: this.seconds, level: 'Park'});
+                    this.scene.start('summary', {seconds: this.seconds, level: 'park'});
                 }
         });
 
@@ -177,9 +178,13 @@ class Park extends Phaser.Scene{
                 .setScale(2)
         }
 
+         this.add.text(20, 20, 'Click the foating rock to hook onto.')
+            .setFontSize('36px')
+            .setFill('#0f0f0f');
+
          this.seconds = 0;
 
-         this.timerText = this.add.text(800, 20, 'Time: 0', {
+         this.timerText = this.add.text(1650, 20, 'Time: 0', {
             fontSize: '40px',
             fill: '#f6f5f0'
          });
@@ -221,7 +226,7 @@ class Park extends Phaser.Scene{
     }
 
     update(){
-
+        //sync the position of the player visual with the physics body
         if (this.player && this.playerVisual){
             this.playerVisual.x =this.player.position.x;
             this.playerVisual.y = this.player.position.y;
@@ -261,6 +266,193 @@ class Rooftops extends Phaser.Scene{
     constructor(){
         super('rooftops');
     }
+     handleGrab(pointer){
+        //hit test to check if the pointer is over the box
+        //this.matter.query.point(bodies, point) 
+        //returns an array of bodies that are under the specified point
+        let bodiesAtPointer = this.matter.query.point(this.matter.world.localWorld.bodies, 
+            {x: pointer.worldX, y: pointer.worldY});
+        //if the array is not empty, it means the pointer is over the box
+        if (bodiesAtPointer.length > 0){
+                //calculate the offset between the pointer and the box's position
+                //if the box is at (100, 100) and the pointer is at (150, 150), the offset will be (50, 50)
+                const offSetX = pointer.worldX - this.box.position.x;
+                const offSetY = pointer.worldY - this.box.position.y;
+
+                //calculate distance for the rope length
+                let distance = Phaser.Math.Distance.Between(this.player.position.x, this.player.position.y, 
+                pointer.worldX, pointer.worldY
+            );
+
+            //create the constraint the rope
+            //this.matter.add.constraint(body1, body2, length, stiffness)
+            this.rope = this.matter.add.constraint(this.player, this.box, distance, 0.1, {
+                pointA: {x: 0, y: 0}, //attach the rope to the center of the ball
+                pointB: {x: offSetX, y: offSetY} //exact spot you clicked on the box
+            });
+    } 
+    }
+
+    
+    handleRelease(){
+        if (this.rope){
+            this.matter.world.removeConstraint(this.rope);
+            this.rope = null;
+        }
+    }
+
+    preload(){
+        this.load.image('background1', 'assets/backgrounf1.png');
+        this.load.image('backgroundrooftops', 'assets/3.png')
+        this.load.image('ramp', 'assets/Ramp2.png');
+        this.load.json('rampCurves', 'assets/ramp.json');
+        this.load.image('cash', 'assets/singleCash.PNG');
+        this.load.image('box', 'assets/1.png');
+        this.load.image('skateboard', 'assets/Skateboard1.png');
+            
+    }
+    
+    create(){
+        this.matter.world.setBounds(10, 10, game.config.width - 10, game.config.height - 10);
+        this.cameras.main.setBackgroundColor('#ff7340');
+        this.add.image(960, 540, 'backgroundrooftops')
+            .setScale(3.4);
+        
+        let rampPhysics = this.cache.json.get('rampCurves');
+        this.ramp1 = this.matter.add.image(1300, 530, 'ramp', null, 
+            {isStatic: true, shape: rampPhysics.Ramp2})
+            .setScale(3.5);
+        this.ramp2 = this.matter.add.image(400, 330, 'ramp', null,
+            {isStatic: true, shape: rampPhysics.Ramp2})
+            .setScale(3);
+        this.ramp3 = this.matter.add.image(100, 260, 'ramp', null,
+            {isStatic: true, shape: rampPhysics.Ramp2})
+            .setScale(3)
+            .setAngle(180);
+        this.cash = this.matter.add.image(290, 340, 'cash', null, 
+            {isStatic: true, isSensor: true})
+        .setScale(2.5);
+        this.cash.body.label = 'money';
+
+
+        this.goalVisual = this.add.graphics();
+        this.goalVisual.fillGradientStyle(0x1419B5, 0x359EB8, 0x8135B8, 0xCA5DD0);
+        this.goalVisual.fillCircle(0, 0, 67);
+        this.goalVisual.setPosition(1700, 200);
+        this.matter.add.gameObject(this.goalVisual, {
+            shape: {type: 'circle', radius: 67},
+            isStatic: true,
+            isSensor: true
+        });
+        this.goalVisual.setAlpha(0);
+        this.goalVisual.body.label = 'goal';
+
+        this.tweens.add({
+            targets: this.goalVisual,
+            angle: 360,
+            duration: 2500,
+            repeat: -1,
+            ease: 'linear'
+        })
+
+        this.seconds = 0;
+        this.timerText = this.add.text(1650, 20, 'Time: 0', {
+            fontSize: '40px',
+            fill: '#ffffff'
+        });
+        this.time.addEvent({
+            delay: 1000, 
+            callback: () => {
+                this.seconds++;
+                let minutes = Math.floor(this.seconds / 60);
+                let partInSeconds = this.seconds % 60;
+                let formattedSeconds = partInSeconds.toString().padStart(2, '0');
+                this.timerText.setText(`Time: ${minutes}:${formattedSeconds}`);
+            },
+            callbackScope: this,
+            loop: true
+        });
+
+        this.matter.world.on('collisionstart', (event, body1, body2) => {
+            if(body1 === this.player && body2.label === 'money' ||
+                body2 === this.player && body1.label === 'money'
+            ){
+                this.cash.destroy();
+                this.goalVisual.setAlpha(1);
+            }
+        });
+
+        this.matter.world.on('collisionstart', (event, body1, body2) => {
+            if (body1 === this.player && body2.label ==='goal' ||
+                body2 === this.player && body1.label === 'goal'
+            ){
+                this.scene.start('summary', {seconds: this.seconds, level: 'rooftops'});
+            }
+        })
+
+
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.canJump = true;
+
+        this.rope = null;
+        this.ropeVisual = this.add.graphics();
+        this.ropeSpeed = 13;
+
+        this.player = this.matter.add.circle(200, 800, 30, {restitution: 0.85});
+        this.box = this.matter.add.circle(900, 200, 30, {isStatic: true});
+
+        this.playerVisual = this.add.image(this.player.position.x, this.player.position.y, 'skateboard')
+            .setScale(4);
+        this.boxVisual = this.add.image(this.box.position.x, this.box.position.y, 'box')
+            .setScale(5);
+
+        this.input.on('pointerdown', this.handleGrab, this);
+        this.input.on('pointerup', this.handleRelease, this);
+    }
+
+    update(){
+        if(this.cursors.left.isDown){
+            this.matter.body.setVelocity(this.player, {x: -5, y: this.player.velocity.y});
+        }
+        if(this.cursors.right.isDown){
+            this.matter.body.setVelocity(this.player, {x: 5, y: this.player.velocity.y});
+        }
+        if(this.cursors.up.isDown && this.canJump){
+            this.matter.body.setVelocity(this.player, {x: this.player.velocity.x, y: -10});
+            this.canJump = false;
+            this.time.delayedCall(1500, () => {
+                this.canJump = true;
+            });
+        }
+        if(this.rope){
+            this.rope.length -= this.ropeSpeed;
+
+            if(this.rope.length < 5){
+                this.rope.length = 5;
+            }
+        };
+
+        this.ropeVisual.clear();
+        if(this.rope){
+            this.ropeVisual.lineStyle(4, 0x8B4513, 1);
+
+            const x1 = this.rope.bodyA.position.x;
+            const y1 = this.rope.bodyA.position.y;
+            const x2 = this.rope.bodyB.position.x;
+            const y2 = this.rope.bodyB.position.y;
+
+            this.ropeVisual.beginPath();
+            this.ropeVisual.moveTo(x1, y1);
+            this.ropeVisual.lineTo(x2, y2);
+            this.ropeVisual.strokePath();
+        }
+
+
+        this.playerVisual.x = this.player.position.x;
+        this.playerVisual.y = this.player.position.y;
+        //this.playerVisual.rotation = this.player.angle;
+    }
 }
 
 class Sky extends Phaser.Scene{
@@ -286,12 +478,12 @@ class Summary extends Phaser.Scene{
         
         //holds the next level and time to beat for each level
         const levelData = {
-            'Park': {next: 'Rooftops', label: 'Level 1 Complete!' , timeToBeat: '1:00'},
-            'Rooftops': {next: 'Sky', label: 'Level 2 Complete!', timeToBeat: '0:45'},
-            'Sky':{next: 'Menu', label: 'Game Complete!'}        
+            'park': {next: 'Rooftops', label: 'Level 1 Complete!' , timeToBeat: '1:00', timeToBeatSeconds: 60},
+            'rooftops': {next: 'Sky', label: 'Level 2 Complete!', timeToBeat: '0:45', timeToBeatSeconds: 45},
+            'sky':{next: 'Menu', label: 'Game Complete!'}        
         };
 
-        const current = this.levelData[data.level]
+        const current = levelData[data.level]
 
         this.add.rectangle(960, 540, 900, 900, 0x000000, 0.7);
 
@@ -310,10 +502,32 @@ class Summary extends Phaser.Scene{
             fill: '#ffffff'
         });
 
-        this.add.text(770, 620, `Next Level: ${current.next}`, {
+        this.add.text(650, 620, `Next Level: ${current.next}`, {
             fontSize: '50px',
             fill: '#ffffff'
         });
+
+        this.add.text(1120, 800, 'Retry', {
+            fontSize: '42px',
+            fill: '#ec2727'
+        })
+        .setInteractive()
+        .on('pointerdown', () => {
+            this.scene.start(data.level);
+        });
+
+        if(data.seconds < current.timeToBeatSeconds){
+        this.continuetext = this.add.text(650, 800, 'Continue', {
+            fontSize: '42px',
+            fill: '#4ef75c'
+        })
+        .setInteractive()
+        .on('pointerdown', () => {
+            this.scene.start(current.next);
+        });
+
+      }
+
     }
 
 }
