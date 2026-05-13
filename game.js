@@ -318,7 +318,7 @@ class Rooftops extends Phaser.Scene{
     }
 
     preload(){
-        this.load.image('background1', 'assets/backgrounf1.png');
+        this.load.image('background1', 'assets/background1.png');
         this.load.image('backgroundrooftops', 'assets/buildings1.png')
         this.load.image('ramp', 'assets/Ramp2.png');
         this.load.json('rampCurves', 'assets/ramp.json');
@@ -682,14 +682,14 @@ class Summary extends Phaser.Scene{
     }
     
     preload(){
-        this.load.image('backgroundlevel', 'assets/background.png');
+        this.load.image('background', 'assets/Background.png');
     }
     create(data){
         gameData.levelTimes[data.level] = data.seconds;
         let minutes = Math.floor(data.seconds / 60);
         let partInSeconds = data.seconds % 60;
         let formattedSeconds = partInSeconds.toString().padStart(2, '0');
-        this.add.image(960, 540, 'backgroundlevel')
+        this.add.image(960, 540, 'background')
         .setScale(3.4);
         
         //holds the next level and time to beat for each level
